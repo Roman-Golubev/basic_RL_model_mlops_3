@@ -1,0 +1,183 @@
+---
+- name: Deploy basic RL model pipeline
+  hosts: all
+  become: true
+  vars:
+    project_dir: /opt/basic_rl_model
+    reset_state: true
+
+  tasks:
+    - name: Ensure project directory exists
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Copy project to VM
+      ansible.posix.synchronize:
+        src: "{{ playbook_dir }}/../../.."
+        dest: "{{ project_dir }}"
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.github"
+          - "--exclude=.venv"
+          - "--exclude=__pycache__"
+          - "--exclude=*.pyc"
+          - "--exclude=.terraform"
+          - "--exclude=terraform.tfstate"
+          - "--exclude=terraform.tfstate.backup"
+          - "--exclude=terraform.tfvars"
+      become: false
+
+    - name: Stop existing containers and remove state for clean deployment
+      shell: |
+        cd {{ project_dir }}
+        docker-compose down -v --remove-orphans || true
+      when: reset_state | bool
+      changed_when: true
+
+    - name: Wait for Docker daemon to be ready
+      shell: docker info
+      register: docker_ready
+      until: docker_ready.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Start docker-compose services
+      shell: |
+        cd {{ project_dir }}
+        docker-compose up -d --build
+      changed_when: true
+
+    - name: Wait for API 1 health
+      uri:
+        url: http://127.0.0.1:8001/health
+        method: GET
+        status_code: 200
+      register: api1_health
+      until: api1_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Wait for API 2 health
+      uri:
+        url: http://127.0.0.1:8002/health
+        method: GET
+        status_code: 200
+      register: api2_health
+      until: api2_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Wait for API 3 health
+      uri:
+        url: http://127.0.0.1:8003/health
+        method: GET
+        status_code: 200
+      register: api3_health
+      until: api3_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Wait for API 4 health
+      uri:
+        url: http://127.0.0.1:8004/health
+        method: GET
+        status_code: 200
+      register: api4_health
+      until: api4_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Wait for API 5 health
+      uri:
+        url: http://127.0.0.1:8005/health
+        method: GET
+        status_code: 200
+      register: api5_health
+      until: api5_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Wait for API 6 health
+      uri:
+        url: http://127.0.0.1:8006/health
+        method: GET
+        status_code: 200
+      register: api6_health
+      until: api6_health.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Run bootstrap calculations in parallel
+      block:
+        - name: Run bootstrap calculations in parallel
+          shell: |
+            set -e
+            cd {{ project_dir }}
+            docker-compose exec -e API_NUM=1 -T api_1 python -m scripts.bootstrap_calculation &
+            PID1=$!
+            docker-compose exec -e API_NUM=2 -T api_2 python -m scripts.bootstrap_calculation &
+            PID2=$!
+            docker-compose exec -e API_NUM=3 -T api_3 python -m scripts.bootstrap_calculation &
+            PID3=$!
+            docker-compose exec -e API_NUM=4 -T api_4 python -m scripts.bootstrap_calculation &
+            PID4=$!
+            docker-compose exec -e API_NUM=5 -T api_5 python -m scripts.bootstrap_calculation &
+            PID5=$!
+            docker-compose exec -e API_NUM=6 -T api_6 python -m scripts.bootstrap_calculation &
+            PID6=$!
+
+            FAIL=0
+            wait $PID1 || { echo "API 1 bootstrap FAILED (rc=$?)"; FAIL=1; }
+            wait $PID2 || { echo "API 2 bootstrap FAILED (rc=$?)"; FAIL=1; }
+            wait $PID3 || { echo "API 3 bootstrap FAILED (rc=$?)"; FAIL=1; }
+            wait $PID4 || { echo "API 4 bootstrap FAILED (rc=$?)"; FAIL=1; }
+            wait $PID5 || { echo "API 5 bootstrap FAILED (rc=$?)"; FAIL=1; }
+            wait $PID6 || { echo "API 6 bootstrap FAILED (rc=$?)"; FAIL=1; }
+
+            exit $FAIL
+          register: bootstrap_result
+          changed_when: bootstrap_result.rc == 0
+          failed_when: bootstrap_result.rc != 0
+          timeout: 20400
+
+      rescue:
+        - name: Show bootstrap failure details
+          debug:
+            msg: >-
+              Bootstrap task failed or timed out.
+              rc={{ bootstrap_result.rc | default('N/A') }},
+              stderr={{ bootstrap_result.stderr | default('N/A') | truncate(300, true, '...') }}.
+              Proceeding to collect whatever results are available on disk.
+
+        - name: Brief pause to allow in-progress file writes to complete
+          shell: sleep 5
+          changed_when: false
+
+    - name: Archive results
+      shell: |
+        cd {{ project_dir }}
+        tar -czf /tmp/basic_rl_model_results.tar.gz artifacts/data_output
+      changed_when: true
+
+    - name: Fetch results archive to runner
+      fetch:
+        src: /tmp/basic_rl_model_results.tar.gz
+        dest: /tmp/
+        flat: true
+
+    - name: Final docker-compose status
+      shell: |
+        cd {{ project_dir }}
+        docker-compose ps
+      register: compose_ps_final
+      changed_when: false
+
+    - name: Print final docker-compose status
+      debug:
+        var: compose_ps_final.stdout_lines

@@ -1,0 +1,90 @@
+services:
+  api_1:
+    build: .
+    container_name: basic_rl_model_api_1
+    environment:
+      - API_NUMBER=1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
+
+  api_2:
+    build: .
+    container_name: basic_rl_model_api_2
+    environment:
+      - API_NUMBER=2
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
+
+  api_3:
+    build: .
+    container_name: basic_rl_model_api_3
+    environment:
+      - API_NUMBER=3
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
+
+  api_4:
+    build: .
+    container_name: basic_rl_model_api_4
+    environment:
+      - API_NUMBER=4
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
+
+  api_5:
+    build: .
+    container_name: basic_rl_model_api_5
+    environment:
+      - API_NUMBER=5
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
+
+  api_6:
+    build: .
+    container_name: basic_rl_model_api_6
+    environment:
+      - API_NUMBER=6
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8006
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./artifacts:/app/artifacts
+    mem_limit: 20480m
+    cpu_period: 100000
+    cpu_quota: 120000
+    restart: unless-stopped
