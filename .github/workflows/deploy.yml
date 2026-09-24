@@ -147,7 +147,7 @@ jobs:
 
       - name: Copy results
         run: |
-          mkdir -p artifacts/data_output 
+          mkdir -p artifacts/data_output
           rsync -a --delete /tmp/results_unpack/artifacts/data_output/ artifacts/data_output/
 
       - name: Commit results and updated input
@@ -363,7 +363,7 @@ jobs:
 
       - name: Copy results and updated input into repository
         run: |
-          mkdir -p artifacts/data_output artifacts/data_input
+          mkdir -p artifacts/data_output
           rsync -a --delete /tmp/results_unpack/artifacts/data_output/ artifacts/data_output/
 
       - name: Commit results
@@ -371,7 +371,7 @@ jobs:
           set -e
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add artifacts/data_output 
+          git add artifacts/data_output
           if git diff --cached --quiet; then
             echo "No changes"
           else
@@ -380,12 +380,120 @@ jobs:
           fi
 
   # ═══════════════════════════════════════════════════════════════
-  # JOB 4: Terraform Destroy (всегда, после deploy_run_3)
+  # JOB 4: Четвёртый расчёт
+  # ═══════════════════════════════════════════════════════════════
+  deploy_run_4:
+    name: Deploy run 4
+    runs-on: ubuntu-latest
+    needs: deploy_run_3
+    env:
+      TF_DIR: infra/terraform/environments/dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync repository before deploy
+        run: |
+          set -e
+          git fetch origin "${GITHUB_REF_NAME}"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync openssh-client tar curl
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core==2.15.11
+          ansible-galaxy collection install ansible.posix
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY_BASE64 }}" | base64 -d > ~/.ssh/baseline_model_id_rsa
+          chmod 600 ~/.ssh/baseline_model_id_rsa
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/baseline_model_id_rsa.pub
+          chmod 644 ~/.ssh/baseline_model_id_rsa.pub
+          cat > ~/.ssh/config << 'EOF'
+          Host *
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            IdentityFile ~/.ssh/baseline_model_id_rsa
+            IdentitiesOnly yes
+            LogLevel ERROR
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh-keygen -y -f ~/.ssh/baseline_model_id_rsa > /dev/null 2>&1
+
+      - name: Download Terraform state
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: ${{ env.TF_DIR }}
+
+      - name: Get VM IP from state
+        id: vm-ip
+        run: |
+          IP=$(cd $TF_DIR && terraform output -raw vm_external_ip)
+          echo "VM_IP=$IP" >> $GITHUB_OUTPUT
+          echo "VM IP: $IP"
+
+      - name: Create Ansible inventory
+        run: |
+          mkdir -p infra/ansible/inventory/production
+          cat > infra/ansible/inventory/production/hosts.ini <<EOF
+          [mlops]
+          ${{ steps.vm-ip.outputs.VM_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=/home/runner/.ssh/baseline_model_id_rsa ansible_ssh_common_args="-o ServerAliveInterval=10 -o ServerAliveCountMax=2160"
+          EOF
+
+      - name: Run Ansible deploy (full — includes setup)
+        run: |
+          ansible-playbook -i infra/ansible/inventory/production/hosts.ini infra/ansible/playbooks/deploy.yml
+
+      - name: Unpack results archive
+        run: |
+          rm -rf /tmp/results_unpack
+          mkdir -p /tmp/results_unpack
+          tar -xzf /tmp/basic_rl_model_results.tar.gz -C /tmp/results_unpack
+
+      - name: Copy results and updated input into repository
+        run: |
+          mkdir -p artifacts/data_output artifacts/data_input
+          rsync -a --delete /tmp/results_unpack/artifacts/data_output/ artifacts/data_output/
+
+      - name: Commit results
+        run: |
+          set -e
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add artifacts/data_output
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Add batch calculation results"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+  # ═══════════════════════════════════════════════════════════════
+  # JOB 5: Terraform Destroy (всегда, после deploy_run_4)
   # ═══════════════════════════════════════════════════════════════
   destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
-    needs: deploy_run_3
+    needs: deploy_run_4
     if: always()
     env:
       TF_DIR: infra/terraform/environments/dev
