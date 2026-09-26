@@ -27,7 +27,7 @@ def RL_func(
     tem_distr_final = np.array([-1] * 10 * 3).reshape(3, 10)
     fin_num_final = -1
     step_num_final = -1
-    for step in range(50):
+    for step in range(25):
         # выбор действия
         if rng.random() < epsilon_now:
             a = int(rng.integers(Q.shape[1]))
@@ -122,7 +122,7 @@ def RL_func(
         if done:
             break
 
-    steps_total += 50
+    steps_total += 25
     return (
         Q, tem_distr, fin_num, Pus_cur, total_reward, steps_total, s, done,
         states_lst, actions_lst, rewards_lst, del_Pus_lst,

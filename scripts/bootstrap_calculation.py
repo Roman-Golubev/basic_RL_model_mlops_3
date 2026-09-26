@@ -6,7 +6,7 @@ from scripts.rl_model import RL_func
 from scripts.pipeline_config import DATA_INPUT_DIR, DATA_OUTPUT_DIR, API_CONFIGS, API_NUM
 
 
-def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_rate=0.85):
+def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_rate=0.992):
     cfg = API_CONFIGS[api_num]
     input_path = os.path.join(DATA_INPUT_DIR, cfg["params_file"])
     output_dir = os.path.join(DATA_OUTPUT_DIR, cfg["output_dir"])
@@ -32,7 +32,7 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
         steps_total = output_df.loc[len(output_df)-1, 'steps_total']
         done = output_df.loc[len(output_df)-1, 'done']
         # продолжение текущего эпизода
-        if steps_total < 700 and not done:
+        if steps_total < 450 and not done:
             # начало первого эпизода
             if steps_total == 0:
                 total_reward = 0
@@ -63,12 +63,12 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
             fin_num = fins_df[fins_df['fin_type'] == fin_type].index[0]
         results_dict['episode'] = episode
 
-        # Выполнение шагов RL-агентом (50 шагов или меньше)
+        # Выполнение шагов RL-агентом (25 шагов или меньше)
         # используется предобученная Q_s_a
         Q = output_df.loc[len(output_df)-1, 'Q_s_a'].copy()
         epsilon_now = max(
             min_epsilon,
-            epsilon * (decay_rate ** episode)
+            epsilon * decay_rate**(episode - 1)
         )
         (
             results_dict['Q_s_a'], results_dict['tem_distr'], results_dict['fin_num'], results_dict['Pus_prev'],
