@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 import numpy as np
+from wrapt_timeout_decorator import timeout
 
 from scripts.properties import (
     row, nuw, cpw, lbdw,
@@ -61,7 +62,12 @@ def RL_func(
             cur_row['shaghm'] = fins_df.loc[fin_num, 'shaghm']
             cur_row['deltahm'] = fins_df.loc[fin_num, 'deltahm']
             cur_row['ledhm'] = fins_df.loc[fin_num, 'ledhm']
-        results_dict = rl_model(cur_row, tem_distr, full_design=False)
+        # проектный расчёт
+        try:
+            results_dict = rl_model(cur_row, tem_distr, full_design=False)
+        except TimeoutError:
+            results_dict['message'] = 'TimeoutError'
+        # определение следующего состояния по итогу расчёта
         if results_dict['message'] == 'Расчёт выполнен':
             Pus_cur = results_dict['Pus']
             delta_Pus = (Pus_cur - Pus_0) * 100 / Pus_0
@@ -243,7 +249,7 @@ def layer_distr_func(distr_perc, rownumtot, nTEMrow, Lpolez):
     TEM_cnt = np.hstack([nTEMrow, TEM_cnt])
     return layer_distr, TEM_cnt
 
-
+@timeout(815)
 def rl_model(cur_row: pd.Series, tem_distr: np.ndarray, full_design=True):
     (
         TEM_type, Tchm0, Tccm0, N0, I0, eta0, aTEM, aTE, Ncoup, hTEM, mTEM,
