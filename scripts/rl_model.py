@@ -29,6 +29,7 @@ def RL_func(
     fin_num_final = -1
     step_num_final = -1
     for step in range(25):
+        steps_total += 1
         # выбор действия
         if rng.random() < epsilon_now:
             a = int(rng.integers(Q.shape[1]))
@@ -128,7 +129,6 @@ def RL_func(
         if done:
             break
 
-    steps_total += 25
     return (
         Q, tem_distr, fin_num, Pus_cur, total_reward, steps_total, s, done,
         states_lst, actions_lst, rewards_lst, del_Pus_lst,
