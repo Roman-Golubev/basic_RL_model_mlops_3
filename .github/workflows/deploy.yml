@@ -119,7 +119,7 @@ jobs:
       - name: Wait for SSH
         run: |
           IP="${{ steps.vm-ip.outputs.VM_IP }}"
-          for i in {1..40}; do
+          for i in {1..10}; do
             if ssh -i ~/.ssh/baseline_model_id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@$IP 'echo SSH OK'; then
               exit 0
             fi
