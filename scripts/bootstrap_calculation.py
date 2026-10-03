@@ -79,7 +79,7 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
         ) = RL_func(
             params_df.iloc[0], fins_df,
             alpha = 0.2,
-            gamma = 1,
+            gamma = 0.99,
             epsilon_now = epsilon_now,
             seed = 42,
             total_reward = total_reward,
