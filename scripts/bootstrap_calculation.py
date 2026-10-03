@@ -15,6 +15,8 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
     params_df = pd.read_csv(input_path)
     csv_path = os.path.join(DATA_INPUT_DIR, "fins.csv")
     fins_df = pd.read_csv(csv_path)
+    fin_type = params_df.iloc[0]['fin_type']
+    fin_num_0 = fins_df[fins_df['fin_type'] == fin_type].index[0]
 
     # 50 итераций, распределяемых по эпизодам
     for _ in range(50):
@@ -40,8 +42,7 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
                 s_next = 0
                 Pus_final = -1
                 tem_distr = np.array([100] * 10 * 3).reshape(3, 10)
-                fin_type = fins_df.iloc[0]['fin_type']
-                fin_num = fins_df[fins_df['fin_type'] == fin_type].index[0]
+                fin_num = fin_num_0
             # продолжение эпизода
             else:
                 total_reward = output_df.loc[len(output_df)-1, 'total_reward']
@@ -59,8 +60,7 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
             s_next = 0
             Pus_final = -1
             tem_distr = np.array([100] * 10 * 3).reshape(3, 10)
-            fin_type = fins_df.iloc[0]['fin_type']
-            fin_num = fins_df[fins_df['fin_type'] == fin_type].index[0]
+            fin_num = fin_num_0
         results_dict['episode'] = episode
 
         # Выполнение шагов RL-агентом (25 шагов или меньше)
@@ -78,6 +78,7 @@ def bootstrap_calculation(api_num=API_NUM, epsilon=0.7, min_epsilon=0.2, decay_r
             results_dict['step_num_final']
         ) = RL_func(
             params_df.iloc[0], fins_df,
+            fin_num_0 = fin_num_0, 
             alpha = 0.2,
             gamma = 0.99,
             epsilon_now = epsilon_now,

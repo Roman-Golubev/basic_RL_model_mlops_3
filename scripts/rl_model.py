@@ -10,15 +10,22 @@ from scripts.properties import (
 
 
 def RL_func(
-    init_param_row, fins_df, alpha, gamma, epsilon_now, seed,
+    init_param_row, fins_df, fin_num_0, alpha, gamma, epsilon_now, seed,
     total_reward, steps_total, Pus_prev, Q, tem_distr, fin_num,
     s, Pus_final
 ):
     rng = np.random.default_rng(seed)
     cur_row = init_param_row.copy()
+
+    # актуализация данных о применяемом оребрении
+    cur_row['fin_type'] = fins_df.loc[fin_num, 'fin_type']
+    cur_row['hhm'] = fins_df.loc[fin_num, 'hhm']
+    cur_row['dekvhm'] = fins_df.loc[fin_num, 'dekvhm']
+    cur_row['shaghm'] = fins_df.loc[fin_num, 'shaghm']
+    cur_row['deltahm'] = fins_df.loc[fin_num, 'deltahm']
+    cur_row['ledhm'] = fins_df.loc[fin_num, 'ledhm']
+
     Pus_0 = cur_row['Pus_full']
-    fin_type = cur_row['fin_type']
-    fin_num_0 = fins_df[fins_df['fin_type'] == fin_type].index[0]
     tem_distr_0 = np.array([100] * 10 * 3).reshape(3, 10)
 
     states_lst = []
